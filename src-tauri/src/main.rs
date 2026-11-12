@@ -3,7 +3,6 @@
 
 mod config;
 mod ocr;
-mod python;
 mod translate;
 mod tts;
 
@@ -426,7 +425,7 @@ async fn tts_edge(app: AppHandle, text: String, voice: Option<String>, rate: Opt
         Err(e) => return json!({ "ok": false, "error": e.to_string() }),
     };
     let st = app.state::<AppState>();
-    match st.tts.speak(&c.python_path, &cache, &text, &voice, rate.unwrap_or(c.tts_rate), |m| status(&app, m)).await {
+    match st.tts.speak(&cache, &text, &voice, rate.unwrap_or(c.tts_rate)).await {
         Ok(url) => json!({ "ok": true, "url": url }),
         Err(e) => json!({ "ok": false, "error": e }),
     }

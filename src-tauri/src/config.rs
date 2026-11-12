@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub const LANGS: &[(&str, &str)] = &[
     ("vi", "Vietnamese"), ("en", "English"), ("zh-CN", "Simplified Chinese"), ("zh-TW", "Traditional Chinese"),
@@ -53,7 +53,6 @@ pub struct Provider {
 #[serde(rename_all = "camelCase", default)]
 pub struct Config {
     pub config_version: u32,
-    pub python_path: String,
     pub hotkey_ocr: String,
     pub hotkey_clipboard: String,
     pub hotkey_show: String,
@@ -79,7 +78,6 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             config_version: 2,
-            python_path: "python".into(),
             hotkey_ocr: "Alt+Q".into(),
             hotkey_clipboard: "Alt+E".into(),
             hotkey_show: "Alt+W".into(),
@@ -108,7 +106,6 @@ impl Default for Config {
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ConfigPatch {
-    python_path: Option<String>,
     hotkey_ocr: Option<String>,
     hotkey_clipboard: Option<String>,
     hotkey_show: Option<String>,
@@ -134,7 +131,7 @@ impl Config {
     pub fn apply(&self, p: ConfigPatch) -> Result<Config, String> {
         let mut c = self.clone();
         macro_rules! take { ($($f:ident),*) => { $( if let Some(v) = p.$f { c.$f = v; } )* } }
-        take!(python_path, hotkey_ocr, hotkey_clipboard, hotkey_show, merge_lines, tone_type, font_size, pinned,
+        take!(hotkey_ocr, hotkey_clipboard, hotkey_show, merge_lines, tone_type, font_size, pinned,
               google_enabled, google_target, google_api_key, ai_enabled, ai_target, ai_providers, tts_engine,
               tts_win_voice, tts_edge_voice, tts_rate, auto_speak, ocr_threads);
         c.validate()?;
@@ -142,13 +139,6 @@ impl Config {
     }
 
     pub fn validate(&mut self) -> Result<(), String> {
-        self.python_path = self.python_path.trim().to_string();
-        if !valid_python(&self.python_path) {
-            return Err(format!(
-                "Python path \"{}\" is not allowed. Use python, python3, py or the full path to python.exe.",
-                self.python_path
-            ));
-        }
         for hk in [&self.hotkey_ocr, &self.hotkey_clipboard, &self.hotkey_show] {
             if !hk.is_empty() && hk.parse::<tauri_plugin_global_shortcut::Shortcut>().is_err() {
                 return Err(format!("Invalid hotkey: {hk}"));
@@ -185,18 +175,6 @@ impl Config {
         }
         Ok(())
     }
-}
-
-/// Only an interpreter name on PATH, or an absolute path to an existing python*.exe / py.exe.
-pub fn valid_python(p: &str) -> bool {
-    let lower = p.to_ascii_lowercase();
-    if matches!(lower.as_str(), "python" | "python3" | "py") {
-        return true;
-    }
-    let path = Path::new(p);
-    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("").to_ascii_lowercase();
-    let name_ok = name == "py.exe" || (name.starts_with("python") && name.ends_with(".exe"));
-    path.is_absolute() && name_ok && path.is_file()
 }
 
 /// e.g. zh-CN-XiaoxiaoNeural, zh-CN-liaoning-XiaobeiNeural
@@ -247,10 +225,7 @@ impl Store {
                 .and_then(parse)
                 .unwrap_or_default(),
         };
-        if c.validate().is_err() {
-            c.python_path = "python".into();
-            let _ = c.validate();
-        }
+        let _ = c.validate();
         // keys from the vault; a key still present in the file (legacy import) wins and is moved on save
         if c.google_api_key.is_empty() {
             c.google_api_key = secret_get("google");

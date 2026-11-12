@@ -1,7 +1,7 @@
 [package]
 name = "readchinese"
 version = "0.1.0"
-description = "ReadChinese – Tauri 2 prototype (Rust backend, OCR via ONNX Runtime)"
+description = "ReadChinese – Tauri 2 prototype (Rust backend, OCR via ONNX Runtime, no Python)"
 edition = "2021"
 
 [build-dependencies]
@@ -25,6 +25,8 @@ sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
 # ONNX Runtime (statically linked prebuilt binaries) for the PP-OCR models
 ort = "=2.0.0-rc.15"
+# Edge TTS websocket
+tokio-tungstenite = { version = "0.30", features = ["rustls-tls-webpki-roots"] }
 
 # Image crop / PNG encoding is very slow without optimisation -> optimise dependencies even in dev builds
 [profile.dev.package."*"]

@@ -365,7 +365,6 @@ function openSettings() {
   $('sHkClip').value = cfg.hotkeyClipboard || '';
   $('sHkShow').value = cfg.hotkeyShow || '';
   $('sMerge').checked = !!cfg.mergeLines;
-  $('sPython').value = cfg.pythonPath || '';
   $('sThreads').value = cfg.ocrThreads || 2;
   window.api.captureBackend().then((b) => { $('backendInfo').textContent = `Screen capture: ${b}`; });
 
@@ -409,7 +408,6 @@ $('sSave').onclick = async () => {
     hotkeyClipboard: $('sHkClip').value.trim(),
     hotkeyShow: $('sHkShow').value.trim(),
     mergeLines: $('sMerge').checked,
-    pythonPath: $('sPython').value.trim() || 'python',
     ocrThreads: Math.max(1, Math.min(16, parseInt($('sThreads').value, 10) || 2)),
   };
   const retranslate = ['googleEnabled', 'googleTarget', 'aiEnabled', 'aiTarget']
