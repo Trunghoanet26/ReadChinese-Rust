@@ -1,7 +1,7 @@
 [package]
 name = "readchinese"
 version = "0.1.0"
-description = "ReadChinese – Tauri 2 prototype (Rust backend, OCR via ONNX Runtime, no Python)"
+description = "ReadChinese – Chinese screen OCR, pinyin, translation and TTS (Rust + Tauri 2)"
 edition = "2021"
 
 [build-dependencies]
