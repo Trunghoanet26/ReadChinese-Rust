@@ -60,7 +60,7 @@ fn create_main_window(app: &AppHandle) -> tauri::Result<()> {
         .background_color(tauri::window::Color(11, 31, 58, 255))
         .on_page_load(|w, p| {
             if p.event() == PageLoadEvent::Finished {
-                // start OCR early (installs RapidOCR if missing) once the UI can show status messages
+                // load the OCR models early, once the UI can show errors
                 let app = w.app_handle().clone();
                 if let Some(m) = app.state::<AppState>().hotkey_error.lock().unwrap().clone() {
                     status(&app, &m);
@@ -149,20 +149,28 @@ fn show_main(app: &AppHandle) {
 }
 
 // ------------------------------------------------------------------ OCR
-fn ocr_script(app: &AppHandle) -> PathBuf {
-    let bundled = app.path().resolve("python/ocr_server.py", tauri::path::BaseDirectory::Resource).ok();
+/// Folder with the PP-OCR ONNX models (bundled resource; the repository folder in dev runs).
+fn models_dir(app: &AppHandle) -> PathBuf {
+    let bundled = app.path().resolve("models", tauri::path::BaseDirectory::Resource).ok();
     match bundled {
-        Some(p) if p.exists() => p,
-        // dev fallback: the shared script in the repository
-        _ => PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("..").join("python").join("ocr_server.py"),
+        Some(p) if p.join(ocr::DET_MODEL).exists() => p,
+        _ => PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("models"),
     }
 }
 
+/// Load the OCR models once (on a blocking thread: ~0.3 s).
 async fn ensure_ocr(app: &AppHandle) -> Result<(), String> {
-    let c = cfg(app);
-    let script = ocr_script(app);
-    let st = app.state::<AppState>();
-    st.ocr.ensure(&c.python_path, &script, c.ocr_threads, |m| status(app, m)).await
+    if app.state::<AppState>().ocr.is_loaded() {
+        return Ok(());
+    }
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = models_dir(&app);
+        let threads = cfg(&app).ocr_threads;
+        app.state::<AppState>().ocr.ensure(&dir, threads)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 // ------------------------------------------------------------------ screen capture
@@ -227,20 +235,14 @@ fn end_capture(app: &AppHandle) {
 #[derive(Deserialize, Clone, Copy)]
 struct SelRect { x: f64, y: f64, width: f64, height: f64 }
 
-/// Crop the selection (physical pixels) and encode it as PNG, in memory.
-fn crop_png(img: &RgbaImage, r: SelRect) -> Result<Vec<u8>, String> {
-    use xcap::image::{codecs::png::{CompressionType, FilterType, PngEncoder}, imageops, ExtendedColorType, ImageEncoder};
+/// Crop the selection (physical pixels) out of the screenshot.
+fn crop(img: &RgbaImage, r: SelRect) -> RgbaImage {
     let (iw, ih) = (img.width(), img.height());
     let x = (r.x.max(0.0) as u32).min(iw.saturating_sub(1));
     let y = (r.y.max(0.0) as u32).min(ih.saturating_sub(1));
     let w = (r.width.round() as u32).clamp(1, iw - x);
     let h = (r.height.round() as u32).clamp(1, ih - y);
-    let sub = imageops::crop_imm(img, x, y, w, h).to_image();
-    let mut out = Vec::new();
-    PngEncoder::new_with_quality(&mut out, CompressionType::Fast, FilterType::Adaptive)
-        .write_image(sub.as_raw(), w, h, ExtendedColorType::Rgba8)
-        .map_err(|e| e.to_string())?;
-    Ok(out)
+    xcap::image::imageops::crop_imm(img, x, y, w, h).to_image()
 }
 
 // ------------------------------------------------------------------ hotkeys & tray
@@ -341,8 +343,8 @@ async fn set_config(app: AppHandle, patch: Value) -> Result<Config, String> {
             let _ = tray.set_menu(Some(menu));
         }
     }
-    if old.python_path != new.python_path || old.ocr_threads != new.ocr_threads {
-        st.ocr.restart().await;
+    if old.ocr_threads != new.ocr_threads {
+        st.ocr.restart();
     }
     Ok(new)
 }
@@ -451,17 +453,19 @@ async fn capture_done(app: AppHandle, rect: Option<SelRect>) {
         return;
     }
     tokio::time::sleep(Duration::from_millis(16)).await; // let Windows hide the overlay first
-    let png = match tauri::async_runtime::spawn_blocking(move || crop_png(&img, r)).await {
-        Ok(Ok(p)) => p,
-        Ok(Err(e)) => { let _ = app.emit_to("main", "ocr:error", e); return; }
-        Err(e) => { let _ = app.emit_to("main", "ocr:error", e.to_string()); return; }
-    };
     show_main(&app);
     let _ = app.emit_to("main", "ocr:start", ());
     let c = cfg(&app);
     let res = async {
         ensure_ocr(&app).await?;
-        let lines = st.ocr.recognize(&png).await?;
+        let app2 = app.clone();
+        let lines = tauri::async_runtime::spawn_blocking(move || {
+            let sub = crop(&img, r);
+            drop(img);
+            app2.state::<AppState>().ocr.recognize(&sub)
+        })
+        .await
+        .map_err(|e| e.to_string())??;
         Ok::<String, String>(ocr::join_lines(&lines, c.merge_lines))
     }
     .await;

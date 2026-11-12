@@ -3,7 +3,6 @@
 use std::time::Duration;
 use tokio::io::AsyncReadExt;
 
-pub const RAPIDOCR: &str = "rapidocr_onnxruntime==1.4.4";
 pub const EDGE_TTS: &str = "edge-tts==7.3.1";
 
 pub fn command(python: &str) -> tokio::process::Command {

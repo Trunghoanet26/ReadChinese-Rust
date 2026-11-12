@@ -25,7 +25,7 @@
     "targets": ["nsis"],
     "icon": ["icons/icon.png", "icons/icon.ico"],
     "resources": {
-      "../../python/ocr_server.py": "python/ocr_server.py"
+      "../models/*.onnx": "models/"
     }
   }
 }
