@@ -1,0 +1,34 @@
+[package]
+name = "readchinese"
+version = "0.1.0"
+description = "ReadChinese – Tauri 2 prototype (Rust backend + Python OCR sidecar)"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+tokio = { version = "1", features = ["process", "io-util", "sync", "time", "macros"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls", "http2"] }
+futures-util = "0.3"
+xcap = "0.9"
+image = { version = "0.25", default-features = false, features = ["png"] }
+keyring = { version = "3", features = ["windows-native"] }
+base64 = "0.22"
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4"] }
+
+# Image crop / PNG encoding is very slow without optimisation -> optimise dependencies even in dev builds
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

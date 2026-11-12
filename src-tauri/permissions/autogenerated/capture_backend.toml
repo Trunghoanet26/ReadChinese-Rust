@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-capture-backend"
+description = "Enables the capture_backend command without any pre-configured scope."
+commands.allow = ["capture_backend"]
+
+[[permission]]
+identifier = "deny-capture-backend"
+description = "Denies the capture_backend command without any pre-configured scope."
+commands.deny = ["capture_backend"]

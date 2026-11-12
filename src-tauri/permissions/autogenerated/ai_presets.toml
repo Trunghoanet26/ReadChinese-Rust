@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ai-presets"
+description = "Enables the ai_presets command without any pre-configured scope."
+commands.allow = ["ai_presets"]
+
+[[permission]]
+identifier = "deny-ai-presets"
+description = "Denies the ai_presets command without any pre-configured scope."
+commands.deny = ["ai_presets"]

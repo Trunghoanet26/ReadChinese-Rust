@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-fit"
+description = "Enables the fit command without any pre-configured scope."
+commands.allow = ["fit"]
+
+[[permission]]
+identifier = "deny-fit"
+description = "Denies the fit command without any pre-configured scope."
+commands.deny = ["fit"]

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ReadChinese</title>
+<link rel="stylesheet" href="style.css">
+<script src="vendor/pinyin-pro.js"></script>
+</head>
+<body>
+<div id="app">
+  <header class="titlebar" data-tauri-drag-region>
+    <button id="btnPin" class="icon pin" title="Pin (keep the window open when clicking elsewhere)">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M16 9V4h1a1 1 0 0 0 0-2H7a1 1 0 0 0 0 2h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z"/></svg>
+    </button>
+    <span class="drag" data-tauri-drag-region>ReadChinese</span>
+    <button id="btnOcr" class="icon" title="Capture screen area">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/></svg>
+    </button>
+    <button id="btnSettings" class="icon" title="Settings">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+    <button id="btnClose" class="icon" title="Hide (Esc)">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </header>
+
+  <!-- ===================== main view ===================== -->
+  <main id="viewMain">
+    <section class="card source">
+      <div id="status" class="status" hidden></div>
+      <div id="ruby" class="ruby" title="Click a character with a dotted reading to cycle its pronunciations"></div>
+      <textarea id="input" placeholder="Type or paste Chinese, then Ctrl+Enter…" hidden></textarea>
+      <div class="toolbar">
+        <button id="btnSpeak" class="icon speak" title="Read aloud (select part of the text to read only that part)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path class="ic-play" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05A4.47 4.47 0 0 0 16.5 12zM14 3.23v2.06a7 7 0 0 1 0 13.42v2.06A9 9 0 0 0 14 3.23z"/><rect class="ic-stop" x="6" y="6" width="12" height="12" rx="2"/></svg>
+        </button>
+        <button id="btnEdit" class="icon" title="Edit text">✎</button>
+        <button id="btnCopyText" class="icon" title="Copy Chinese text">⧉</button>
+        <button id="btnCopyPinyin" class="icon" title="Copy pinyin">拼</button>
+        <button id="btnTone" class="chip" title="Tone style">nǐ hǎo</button>
+        <span class="spacer"></span>
+        <button id="btnSmaller" class="icon" title="Smaller text">A−</button>
+        <button id="btnBigger" class="icon" title="Larger text">A+</button>
+        <button id="btnTranslate" class="chip accent" title="Translate (Ctrl+Enter)">Translate</button>
+      </div>
+    </section>
+    <div id="results"></div>
+  </main>
+
+  <!-- ===================== settings view ===================== -->
+  <section id="viewSettings" hidden>
+    <h2>Settings</h2>
+
+    <div class="group">
+      <div class="group-head">
+        <h3>Google Translate</h3>
+        <label class="switch"><input id="sGoogleOn" type="checkbox"><span></span></label>
+      </div>
+      <div class="group-body" id="googleBody">
+        <label>Translate to<select id="sGoogleTarget"></select></label>
+        <label>API key <span class="muted">(optional – official Cloud Translation API, avoids rate limits)</span>
+          <input id="sGoogleKey" type="password" placeholder="Leave empty to use the free service"></label>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-head">
+        <h3>AI translation</h3>
+        <label class="switch"><input id="sAiOn" type="checkbox"><span></span></label>
+      </div>
+      <div class="group-body" id="aiBody">
+        <label>Translate to<select id="sAiTarget"></select></label>
+        <div id="providers"></div>
+        <div class="add-row">
+          <select id="sAddPreset"></select>
+          <button id="btnAddProvider" class="chip" type="button">+ Add provider</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-head"><h3>Read aloud</h3></div>
+      <div class="group-body">
+        <label>Voice engine<select id="sTtsEngine">
+          <option value="windows">Windows – offline (installed system voices)</option>
+          <option value="edge">Edge TTS – natural voices (online, cached)</option>
+        </select></label>
+        <label id="rowWinVoice">Windows voice<select id="sWinVoice"></select>
+          <small id="winVoiceHint" class="hint"></small></label>
+        <label id="rowEdgeVoice">Edge voice<select id="sEdgeVoice"></select></label>
+        <label>Speed: <b id="rateVal">1.0×</b><input id="sRate" type="range" min="0.5" max="1.5" step="0.1"></label>
+        <label class="row"><input id="sAutoSpeak" type="checkbox"> Read aloud automatically after capture</label>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-head"><h3>General</h3></div>
+      <div class="group-body">
+        <div class="grid3">
+          <label>Capture hotkey<input id="sHkOcr"></label>
+          <label>Clipboard hotkey<input id="sHkClip"></label>
+          <label>Show window<input id="sHkShow"></label>
+        </div>
+        <label class="row"><input id="sMerge" type="checkbox"> Join wrapped OCR lines into paragraphs</label>
+        <div class="grid2">
+          <label>Python path<input id="sPython" placeholder="python"></label>
+          <label>OCR CPU threads<input id="sThreads" type="number" min="1" max="16"></label>
+        </div>
+        <small id="backendInfo" class="muted"></small>
+      </div>
+    </div>
+
+    <p id="sError" class="form-error" role="alert"></p>
+    <div class="actions">
+      <button id="sCancel" class="chip" type="button">Cancel</button>
+      <button id="sSave" class="chip accent" type="button">Save</button>
+    </div>
+  </section>
+</div>
+
+<template id="tplProvider">
+  <div class="provider">
+    <div class="p-head">
+      <input class="p-on" type="checkbox" title="Enabled">
+      <input class="p-name" placeholder="Name">
+      <select class="p-type">
+        <option value="openai">OpenAI-compatible</option>
+        <option value="anthropic">Anthropic (Claude)</option>
+      </select>
+      <button class="icon p-del" type="button" title="Remove">✕</button>
+    </div>
+    <label>Base URL<input class="p-base" placeholder="https://…"></label>
+    <label>API key<input class="p-key" type="password" placeholder="sk-…"></label>
+    <label>Model
+      <span class="inline"><input class="p-model" placeholder="Press Test to load models"><button class="chip p-test" type="button">Test</button></span>
+      <small class="hint p-msg"></small></label>
+  </div>
+</template>
+
+<script src="api.js"></script>
+<script src="renderer.js"></script>
+</body>
+</html>

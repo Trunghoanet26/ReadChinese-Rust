@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-tts-edge"
+description = "Enables the tts_edge command without any pre-configured scope."
+commands.allow = ["tts_edge"]
+
+[[permission]]
+identifier = "deny-tts-edge"
+description = "Denies the tts_edge command without any pre-configured scope."
+commands.deny = ["tts_edge"]

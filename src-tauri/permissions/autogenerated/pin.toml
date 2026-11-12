@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-pin"
+description = "Enables the pin command without any pre-configured scope."
+commands.allow = ["pin"]
+
+[[permission]]
+identifier = "deny-pin"
+description = "Denies the pin command without any pre-configured scope."
+commands.deny = ["pin"]

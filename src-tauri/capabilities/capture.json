@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "capture",
+  "description": "Screen-selection overlay: may only report that it is ready and the selected rectangle.",
+  "windows": ["capture"],
+  "permissions": [
+    "core:event:default",
+    "allow-capture-ready",
+    "allow-capture-done"
+  ]
+}

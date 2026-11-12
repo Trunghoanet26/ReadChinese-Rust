@@ -1,0 +1,14 @@
+:root { --navy: #0B1F3A; --yellow: #FFD66D; }
+body.plain #mask, body.plain #lit, body.plain #sel, body.plain #size, body.plain #hint { display: none; }
+html, body { margin: 0; height: 100%; overflow: hidden; cursor: crosshair; user-select: none; background: #000; }
+canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#mask { position: fixed; inset: 0; background: color-mix(in srgb, var(--navy) 45%, transparent); }
+/* selection: clip-path on a bright copy of the screenshot -> nothing is redrawn on mouse move */
+#lit { clip-path: inset(0 100% 100% 0); will-change: clip-path; }
+#sel { position: fixed; display: none; border: 1.5px solid var(--yellow); box-shadow: 0 0 0 1px rgba(11, 31, 58, .6);
+       left: 0; top: 0; will-change: transform; pointer-events: none; }
+#size { position: fixed; left: 0; top: 0; display: none; font: 600 12px system-ui; color: var(--navy);
+        background: var(--yellow); padding: 2px 6px; border-radius: 4px; }
+#hint { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); font: 13px system-ui;
+        color: var(--yellow); background: color-mix(in srgb, var(--navy) 85%, transparent);
+        padding: 6px 12px; border-radius: 6px; }
