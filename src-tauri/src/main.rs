@@ -49,7 +49,7 @@ fn status(app: &AppHandle, msg: &str) {
 // ------------------------------------------------------------------ windows
 fn create_main_window(app: &AppHandle) -> tauri::Result<()> {
     let win = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
-        .title("ReadChinese")
+        .title("ReadChinese from trunghoa.net")
         .inner_size(440.0, 240.0)
         .min_inner_size(300.0, 120.0)
         .decorations(false)
@@ -301,7 +301,7 @@ fn tray_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
 
 fn create_tray(app: &AppHandle) -> tauri::Result<()> {
     let mut b = TrayIconBuilder::with_id("main")
-        .tooltip("ReadChinese")
+        .tooltip("ReadChinese from trunghoa.net")
         .menu(&tray_menu(app)?)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, ev| match ev.id().as_ref() {
@@ -335,7 +335,7 @@ async fn set_config(app: AppHandle, patch: Value) -> Result<Config, String> {
         let new = c.apply(patch)?;
         (std::mem::replace(&mut *c, new.clone()), new)
     };
-    st.store.save(&new, Some(&old));
+    let saved = st.store.save(&new, Some(&old));
     if (old.hotkey_ocr, old.hotkey_clipboard, old.hotkey_show) != (new.hotkey_ocr.clone(), new.hotkey_clipboard.clone(), new.hotkey_show.clone()) {
         register_hotkeys(&app);
         if let (Some(tray), Ok(menu)) = (app.tray_by_id("main"), tray_menu(&app)) {
@@ -345,6 +345,7 @@ async fn set_config(app: AppHandle, patch: Value) -> Result<Config, String> {
     if old.ocr_threads != new.ocr_threads {
         st.ocr.restart();
     }
+    saved?; // settings are applied; only the key could not be stored -> tell the user
     Ok(new)
 }
 
@@ -387,7 +388,7 @@ fn hide(app: AppHandle) {
 fn pin(app: AppHandle, v: bool) {
     let st = app.state::<AppState>();
     let c = { let mut c = st.config.lock().unwrap(); c.pinned = v; c.clone() };
-    st.store.save(&c, None);
+    let _ = st.store.save(&c, None); // only the pin state changed; keys are unchanged
 }
 
 /// Auto-fit: the UI reports its content height (CSS px); keep the window inside the work area.

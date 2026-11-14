@@ -131,6 +131,7 @@ impl Translator {
     pub async fn ai_test(&self, p: &Provider) -> Value {
         let base = ai_base(p);
         if base.is_empty() { return json!({ "ok": false, "error": "Enter a Base URL." }); }
+        if let Err(e) = crate::config::check_base_url(&base) { return json!({ "ok": false, "error": e }); }
         if p.api_key.is_empty() && p.kind == "anthropic" { return json!({ "ok": false, "error": "Enter an API key." }); }
         let url = if p.kind == "anthropic" { format!("{base}/v1/models?limit=100") } else { format!("{base}/models") };
         let res = match self.client.get(&url).headers(ai_headers(p)).timeout(Duration::from_secs(10)).send().await {
@@ -161,6 +162,7 @@ impl Translator {
             return Err(format!("{}: missing API key (Settings).", p.name));
         }
         let base = ai_base(p);
+        crate::config::check_base_url(&base).map_err(|e| format!("{}: {e}", p.name))?; // also guards an edited config.json
         let system = format!(
             "You are a professional translator. Translate the user's text (usually Chinese) into natural, \
              context-appropriate {}. Keep line breaks. Output only the translation: no explanations, no pinyin, no quotes.",

@@ -276,7 +276,7 @@ function fillLangSelect(sel, value) {
 function fillWinVoices() {
   const voices = zhVoices();
   const sel = $('sWinVoice');
-  sel.innerHTML = voices.map((v) => `<option value="${escapeHtml(v.name)}">${escapeHtml(v.name)} (${v.lang})</option>`).join('');
+  sel.innerHTML = voices.map((v) => `<option value="${escapeHtml(v.name)}">${escapeHtml(v.name)} (${escapeHtml(v.lang)})</option>`).join('');
   if (cfg.ttsWinVoice) sel.value = cfg.ttsWinVoice;
   $('winVoiceHint').textContent = voices.length ? ''
     : 'No Chinese voice found. Windows Settings → Time & language → Language & region → add "中文(中华人民共和国)" '
@@ -414,8 +414,9 @@ $('sSave').onclick = async () => {
     .some((k) => patch[k] !== cfg[k]) || JSON.stringify(patch.aiProviders) !== JSON.stringify(cfg.aiProviders);
   try {
     cfg = await window.api.setConfig(patch);
-  } catch (err) { // rejected by the Rust-side validation
+  } catch (err) { // rejected by the Rust-side validation, or saved but an API key could not be stored
     $('sError').textContent = String(err);
+    cfg = await window.api.getConfig(); // stay in sync with what Rust actually holds
     return;
   }
   closeSettings();

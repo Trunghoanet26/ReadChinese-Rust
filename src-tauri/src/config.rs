@@ -169,11 +169,27 @@ impl Config {
                 p.kind = "openai".into();
             }
             p.base_url = p.base_url.trim().to_string();
-            if !p.base_url.is_empty() && !(p.base_url.starts_with("https://") || p.base_url.starts_with("http://")) {
-                return Err(format!("{}: Base URL must start with https:// or http://", p.name));
+            if !p.base_url.is_empty() {
+                check_base_url(&p.base_url).map_err(|e| format!("{}: {e}", p.name))?;
             }
         }
         Ok(())
+    }
+}
+
+/// A provider Base URL must be a real URL; plain http is only allowed to this computer (Ollama, LM Studio…)
+/// because the API key would otherwise travel unencrypted.
+pub fn check_base_url(s: &str) -> Result<(), String> {
+    let u = reqwest::Url::parse(s).map_err(|_| format!("Base URL \"{s}\" is not a valid URL."))?;
+    let host = u.host_str().unwrap_or("");
+    if host.is_empty() {
+        return Err(format!("Base URL \"{s}\" has no host name."));
+    }
+    match u.scheme() {
+        "https" => Ok(()),
+        "http" if matches!(host, "localhost" | "127.0.0.1" | "[::1]") => Ok(()),
+        "http" => Err("Base URL must use https:// (http:// is only allowed for localhost / 127.0.0.1).".into()),
+        _ => Err("Base URL must start with https://".into()),
     }
 }
 
@@ -193,9 +209,12 @@ fn secret_get(name: &str) -> String {
     keyring::Entry::new(SERVICE, name).and_then(|e| e.get_password()).unwrap_or_default()
 }
 
-fn secret_set(name: &str, value: &str) {
-    if let Ok(e) = keyring::Entry::new(SERVICE, name) {
-        let _ = if value.is_empty() { e.delete_credential() } else { e.set_password(value) };
+fn secret_set(name: &str, value: &str) -> Result<(), String> {
+    let e = keyring::Entry::new(SERVICE, name).map_err(|e| e.to_string())?;
+    let r = if value.is_empty() { e.delete_credential() } else { e.set_password(value) };
+    match r {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()), // deleting a key that is not there is fine
+        Err(e) => Err(e.to_string()),
     }
 }
 
@@ -235,21 +254,30 @@ impl Store {
                 p.api_key = secret_get(&provider_secret(&p.id));
             }
         }
-        self.save(&c, None);
+        if let Err(e) = self.save(&c, None) {
+            eprintln!("{e}");
+        }
         c
     }
 
     /// Write the file WITHOUT keys; keys go to Credential Manager. `old` = previous config, used to
     /// delete the keys of removed providers.
-    pub fn save(&self, c: &Config, old: Option<&Config>) {
-        secret_set("google", &c.google_api_key);
+    /// Errors when a key could not be stored in Credential Manager (the file never holds keys, so the user
+    /// must know: the key would be gone after a restart). The settings file is written either way.
+    pub fn save(&self, c: &Config, old: Option<&Config>) -> Result<(), String> {
+        let mut failed = Vec::new();
+        if let Err(e) = secret_set("google", &c.google_api_key) {
+            failed.push(format!("Google: {e}"));
+        }
         for p in &c.ai_providers {
-            secret_set(&provider_secret(&p.id), &p.api_key);
+            if let Err(e) = secret_set(&provider_secret(&p.id), &p.api_key) {
+                failed.push(format!("{}: {e}", p.name));
+            }
         }
         if let Some(old) = old {
             for p in &old.ai_providers {
                 if !c.ai_providers.iter().any(|x| x.id == p.id) {
-                    secret_set(&provider_secret(&p.id), "");
+                    let _ = secret_set(&provider_secret(&p.id), ""); // a leftover entry is harmless
                 }
             }
         }
@@ -264,6 +292,29 @@ impl Store {
         let tmp = self.path.with_extension("json.tmp");
         if std::fs::write(&tmp, serde_json::to_vec_pretty(&disk).unwrap_or_default()).is_ok() {
             let _ = std::fs::rename(&tmp, &self.path);
+        }
+        if failed.is_empty() {
+            Ok(())
+        } else {
+            Err(format!(
+                "Could not store the API key in Windows Credential Manager, it will be lost after a restart. {}",
+                failed.join("; ")
+            ))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::check_base_url;
+
+    #[test]
+    fn base_urls() {
+        for ok in ["https://api.deepseek.com", "https://api.openai.com/v1", "http://localhost:11434/v1", "http://127.0.0.1:1234/v1", "http://[::1]:8080"] {
+            assert!(check_base_url(ok).is_ok(), "{ok}");
+        }
+        for bad in ["https://", "http://example.com/v1", "ftp://x.com", "api.openai.com", "https:", "http://192.168.1.5:11434"] {
+            assert!(check_base_url(bad).is_err(), "{bad}");
         }
     }
 }
